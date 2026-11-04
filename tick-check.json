@@ -1,0 +1,7 @@
+{
+  "command": "node",
+  "args": [
+    "--test"
+  ],
+  "timeout_ms": 600000
+}
