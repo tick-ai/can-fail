@@ -1,0 +1,32 @@
+{
+  "name": "can-fail",
+  "version": "0.1.0",
+  "description": "Tell me which of my tests cannot fail.",
+  "type": "module",
+  "bin": {
+    "can-fail": "can-fail.mjs"
+  },
+  "files": [
+    "can-fail.mjs",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tick-ai/can-fail.git"
+  },
+  "homepage": "https://github.com/tick-ai/can-fail#readme",
+  "keywords": [
+    "testing",
+    "mutation testing",
+    "ai agents",
+    "tick"
+  ]
+}

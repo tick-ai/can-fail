@@ -1,7 +1,8 @@
+#!/usr/bin/env node
 // can-fail: change a project's code on purpose, one small change at a time, run its tests
 // after each change, and report every change that no test noticed.
 // One self-contained ES module; Node 22, built-in modules only, no network.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   lstatSync,
@@ -20,7 +21,11 @@ import {
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-const USAGE = 'usage: node can-fail.mjs --src <file or folder> --test "<command>" [--json] [--timeout <seconds>]';
+const USAGE = 'usage: can-fail --src <file or folder> --test "<command>" [--json] [--timeout <seconds>]';
+
+// Windows has no process groups: a run's whole tree is ended with taskkill instead.
+const WINDOWS = process.platform === 'win32';
+const TASKKILL = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe');
 
 class UsageError extends Error {}
 
@@ -475,6 +480,16 @@ let copyRoot = null;
 
 function killGroup(child) {
   if (!child || child.pid === undefined) return;
+  if (WINDOWS) {
+    // the pid is a number Node gave us, passed as one argument: no shell reads it
+    spawnSync(TASKKILL, ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    try {
+      child.kill();
+    } catch {
+      /* gone */
+    }
+    return;
+  }
   try {
     process.kill(-child.pid, 'SIGKILL');
   } catch {
@@ -502,7 +517,8 @@ function cleanup() {
 
 function runTest(command, cwd, timeoutMs) {
   return new Promise((resolveRun) => {
-    const child = spawn('sh', ['-c', command], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // the system's own shell: sh on macOS and Linux, cmd.exe on Windows
+    const child = spawn(command, { shell: true, cwd, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: !WINDOWS });
     current = child;
     let output = '';
     let timedOut = false;
@@ -519,7 +535,9 @@ function runTest(command, cwd, timeoutMs) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      killGroup(child);
+      // on macOS and Linux, end anything the run left behind in its group; on Windows a run is
+      // ended only when it timed out (the timer below) or when the tool itself ends (cleanup)
+      if (!WINDOWS) killGroup(child);
       if (current === child) current = null;
       child.stdout.destroy();
       child.stderr.destroy();
